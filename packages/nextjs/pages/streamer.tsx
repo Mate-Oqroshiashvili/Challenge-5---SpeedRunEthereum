@@ -127,6 +127,22 @@ const Streamer: NextPage = () => {
        *  and then use verifyMessage() to confirm that voucher signer was
        *  `clientAddress`. (If it wasn't, log some error message and return).
        */
+
+      const packed = encodePacked(["uint256"], [updatedBalance]);
+      const hashed = keccak256(packed);
+      const arrayified: any = toBytes(hashed);
+
+      const verifiedMessage = verifyMessage({
+        address: clientAddress,
+        message: arrayified,
+        signature: data.signature,
+      });
+
+      if (!verifiedMessage) {
+        console.error("Message not verified!");
+        return;
+      }
+
       const existingVoucher = vouchers[clientAddress];
 
       // update our stored voucher if this new one is more valuable
@@ -199,6 +215,11 @@ const Streamer: NextPage = () => {
   }, [userAddress]);
 
   const provideService = (client: AddressType, wisdom: string) => {
+    if (![client]) {
+      console.log(`Client ${client} has not paid. Service not provided.`);
+      return;
+    }
+
     setWisdoms({ ...wisdoms, [client]: wisdom });
     channels[client]?.postMessage(wisdom);
   };
@@ -212,15 +233,15 @@ const Streamer: NextPage = () => {
   });
 
   // Checkpoint 5
-  // const { writeAsync: challengeChannel } = useScaffoldContractWrite({
-  //   contractName: "Streamer",
-  //   functionName: "challengeChannel",
-  // });
+  const { writeAsync: challengeChannel } = useScaffoldContractWrite({
+    contractName: "Streamer",
+    functionName: "challengeChannel",
+  });
 
-  // const { writeAsync: defundChannel } = useScaffoldContractWrite({
-  //   contractName: "Streamer",
-  //   functionName: "defundChannel",
-  // });
+  const { writeAsync: defundChannel } = useScaffoldContractWrite({
+    contractName: "Streamer",
+    functionName: "defundChannel",
+  });
 
   const [recievedWisdom, setReceivedWisdom] = useState("");
 
@@ -346,13 +367,15 @@ const Streamer: NextPage = () => {
                     </div>
 
                     {/* Checkpoint 4: */}
-                    {/* <CashOutVoucherButton
-                      key={clientAddress}
-                      clientAddress={clientAddress}
-                      challenged={challenged}
-                      closed={closed}
-                      voucher={vouchers[clientAddress]}
-                    /> */}
+                    {
+                      <CashOutVoucherButton
+                        key={clientAddress}
+                        clientAddress={clientAddress}
+                        challenged={challenged}
+                        closed={closed}
+                        voucher={vouchers[clientAddress]}
+                      />
+                    }
                   </div>
                 ))}
               </div>
@@ -389,45 +412,47 @@ const Streamer: NextPage = () => {
                   </div>
 
                   {/* Checkpoint 5: challenge & closure */}
-                  {/* <div className="flex flex-col items-center pb-6">
-                    <button
-                      disabled={challenged.includes(userAddress)}
-                      className="btn btn-primary"
-                      onClick={() => {
-                        // disable the production of further voucher signatures
-                        setAutoPay(false);
-                        challengeChannel();
-                        try {
-                          // ensure a 'ticking clock' for the UI without having
-                          // to send new transactions & mine new blocks
-                          createTestClient({
-                            chain: hardhat,
-                            mode: "hardhat",
-                            transport: http(),
-                          })?.setIntervalMining({
-                            interval: 5,
-                          });
-                        } catch (e) {}
-                      }}
-                    >
-                      Challenge this channel
-                    </button>
+                  {
+                    <div className="flex flex-col items-center pb-6">
+                      <button
+                        disabled={challenged.includes(userAddress)}
+                        className="btn btn-primary"
+                        onClick={() => {
+                          // disable the production of further voucher signatures
+                          setAutoPay(false);
+                          challengeChannel();
+                          try {
+                            // ensure a 'ticking clock' for the UI without having
+                            // to send new transactions & mine new blocks
+                            createTestClient({
+                              chain: hardhat,
+                              mode: "hardhat",
+                              transport: http(),
+                            })?.setIntervalMining({
+                              interval: 5,
+                            });
+                          } catch (e) {}
+                        }}
+                      >
+                        Challenge this channel
+                      </button>
 
-                    <div className="p-2 mt-6 h-10">
-                      {challenged.includes(userAddress) && !!timeLeft && (
-                        <>
-                          <span>Time left:</span> {humanizeDuration(Number(timeLeft) * 1000)}
-                        </>
-                      )}
+                      <div className="p-2 mt-6 h-10">
+                        {challenged.includes(userAddress) && !!timeLeft && (
+                          <>
+                            <span>Time left:</span> {humanizeDuration(Number(timeLeft) * 1000)}
+                          </>
+                        )}
+                      </div>
+                      <button
+                        className="btn btn-primary"
+                        disabled={!challenged.includes(userAddress) || !!timeLeft}
+                        onClick={() => defundChannel()}
+                      >
+                        Close and withdraw funds
+                      </button>
                     </div>
-                    <button
-                      className="btn btn-primary"
-                      disabled={!challenged.includes(userAddress) || !!timeLeft}
-                      onClick={() => defundChannel()}
-                    >
-                      Close and withdraw funds
-                    </button>
-                  </div> */}
+                  }
                 </div>
               ) : userAddress && closed.includes(userAddress) ? (
                 <div className="text-lg">
